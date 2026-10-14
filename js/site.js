@@ -3,7 +3,10 @@
 
 /* ===== Rastreamento de clique para baixar (plugar a conversão do Google Ads aqui) ===== */
 window.rastrearDownload = function (origem) {
-  if (window.gtag) gtag('event', 'clique_baixar', { origem: origem });
+  if (!window.gtag) return;
+  gtag('event', 'clique_baixar', { origem: origem });
+  // Conversão do Google Ads "Site - clique Baixar GoTask".
+  gtag('event', 'conversion', { send_to: 'AW-18362638900/M_80CNy7gZ0dELTE_rNE' });
 };
 
 (function () {
