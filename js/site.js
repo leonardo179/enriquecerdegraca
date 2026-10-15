@@ -1,12 +1,21 @@
 /* Enriquecer passo a passo — comportamento comum a todas as páginas.
    Nada aqui envia dados a servidor; o progresso da trilha fica só no seu navegador. */
 
-/* ===== Rastreamento de clique para baixar (plugar a conversão do Google Ads aqui) ===== */
+/* ===== Rastreamento de clique para baixar =====
+   Os links da Play abrem em nova aba (target=_blank), então esta página continua viva
+   e o evento sai por beacon. Nada aqui segura ou refaz a navegação. */
 window.rastrearDownload = function (origem) {
-  if (!window.gtag) return;
-  gtag('event', 'clique_baixar', { origem: origem });
-  // Conversão do Google Ads "Site - clique Baixar GoTask".
-  gtag('event', 'conversion', { send_to: 'AW-18362638900/M_80CNy7gZ0dELTE_rNE' });
+  if (typeof window.gtag !== 'function') return;
+  try {
+    gtag('event', 'clique_baixar', { origem: origem, transport_type: 'beacon' });
+    // Conversão do Google Ads "Site - clique Baixar GoTask".
+    gtag('event', 'conversion', {
+      send_to: 'AW-18362638900/M_80CNy7gZ0dELTE_rNE',
+      transport_type: 'beacon',
+      event_callback: function () {},
+      event_timeout: 1500
+    });
+  } catch (e) {}
 };
 
 (function () {
@@ -100,20 +109,26 @@ window.rastrearDownload = function (origem) {
   window.desenharIcones = desenharIcones;
   desenharIcones();
 
-  /* ===== Cliques para a Play Store ===== */
+  /* ===== Links da Play Store: referrer UTM para medir instalações =====
+     O href escrito no HTML continua válido (fallback sem JS); aqui só acrescentamos
+     &referrer=utm_source=enriquecer&utm_medium=site&utm_campaign=<página>&utm_content=<origem> (codificado). */
+  var PLAY_BASE = 'https://play.google.com/store/apps/details?id=com.lhapps.gotask';
+  var limpar = function (t) { return String(t || '').replace(/[^a-zA-Z0-9_-]/g, ''); };
+  var nomePagina = limpar((location.pathname.split('/').pop() || '').replace(/\.html?$/i, '')) || 'index';
+  document.querySelectorAll('a[href^="' + PLAY_BASE + '"]').forEach(function (a) {
+    var href = a.getAttribute('href');
+    if (/[?&]referrer=/.test(href)) return;
+    var conteudo = limpar(a.getAttribute('data-origem') || a.getAttribute('data-utm')) || 'link';
+    var ref = 'utm_source=enriquecer&utm_medium=site&utm_campaign=' + nomePagina + '&utm_content=' + conteudo;
+    a.setAttribute('href', href + '&referrer=' + encodeURIComponent(ref));
+    if (!a.target) { a.target = '_blank'; a.rel = 'noopener'; }
+  });
+
+  /* ===== Cliques para a Play Store (só registra; a navegação segue normal, em nova aba) ===== */
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[data-origem]');
     if (!a) return;
-    var origem = a.getAttribute('data-origem');
-    window.rastrearDownload(origem);
-    // Se o gtag estiver plugado, segura a navegação um instante para o evento sair.
-    var abreNovaAba = e.ctrlKey || e.metaKey || e.shiftKey || e.button === 1 || a.target === '_blank';
-    if (window.gtag && !abreNovaAba) {
-      e.preventDefault();
-      var foi = false;
-      var ir = function () { if (!foi) { foi = true; window.location.href = a.href; } };
-      setTimeout(ir, 350);
-    }
+    window.rastrearDownload(a.getAttribute('data-origem'));
   });
 
   /* ===== Menu do celular ===== */
